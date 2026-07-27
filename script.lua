@@ -140,9 +140,10 @@ roleEvent.OnClientEvent:Connect(function(roleTable)
 	end
 end)
 
--- Auto Farm Setup
+-- Auto Farm Setup - FIXED VERSION
 local autoFarm = false
 local farmSpeed = 1
+local originalCFrame = nil
 
 local farmButton = Instance.new("TextButton")
 farmButton.Size = UDim2.new(0, 200, 0, 35)
@@ -153,6 +154,10 @@ farmButton.Parent = main
 farmButton.MouseButton1Click:Connect(function()
 	autoFarm = not autoFarm
 	farmButton.Text = autoFarm and "Auto Farm: ON" or "Auto Farm: OFF"
+	
+	if autoFarm and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		originalCFrame = player.Character.HumanoidRootPart.CFrame
+	end
 end)
 
 local speedBox = Instance.new("TextBox")
@@ -176,10 +181,16 @@ task.spawn(function()
 			local coins = workspace:FindFirstChild("Coins")
 			if coins then
 				for _, coin in pairs(coins:GetChildren()) do
-					if coin:IsA("BasePart") and player.Character then
-						player.Character:MoveTo(coin.Position)
+					if coin:IsA("BasePart") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+						local root = player.Character.HumanoidRootPart
+						-- Move slightly above the coin, not directly to it
+						local targetPos = coin.Position + Vector3.new(0, 2, 0)
+						root.CFrame = CFrame.new(targetPos)
+						task.wait(farmSpeed / 10)
+						pcall(function()
+							ReplicatedStorage.CollectCoin:FireServer(coin)
+						end)
 						task.wait(farmSpeed)
-						ReplicatedStorage.CollectCoin:FireServer(coin)
 					end
 				end
 			end
@@ -227,7 +238,9 @@ task.spawn(function()
 						if distance <= shootRange then
 							local role = target:FindFirstChild("Role")
 							if role and role.Value == "Murderer" then
-								ReplicatedStorage.ShootRequest:FireServer(target)
+								pcall(function()
+									ReplicatedStorage.ShootRequest:FireServer(target)
+								end)
 							end
 						end
 					end
@@ -260,8 +273,9 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
--- Noclip
+-- Noclip with invisible underground mode
 local noclip = false
+local undergroundMode = false
 
 local noclipButton = Instance.new("TextButton")
 noclipButton.Size = UDim2.new(0, 200, 0, 35)
@@ -272,6 +286,24 @@ noclipButton.Parent = main
 noclipButton.MouseButton1Click:Connect(function()
 	noclip = not noclip
 	noclipButton.Text = noclip and "Noclip: ON" or "Noclip: OFF"
+end)
+
+-- Underground mode button
+local undergroundButton = Instance.new("TextButton")
+undergroundButton.Size = UDim2.new(0, 200, 0, 35)
+undergroundButton.Position = UDim2.new(0, 75, 0, 330)
+undergroundButton.Text = "Underground: OFF"
+undergroundButton.Parent = main
+
+undergroundButton.MouseButton1Click:Connect(function()
+	undergroundMode = not undergroundMode
+	undergroundButton.Text = undergroundMode and "Underground: ON" or "Underground: OFF"
+	
+	if undergroundMode and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		-- Move slightly below the map (just -5 studs)
+		local root = player.Character.HumanoidRootPart
+		root.CFrame = CFrame.new(root.Position.X, -5, root.Position.Z)
+	end
 end)
 
 RunService.Stepped:Connect(function()
